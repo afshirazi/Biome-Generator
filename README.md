@@ -1,1 +1,1 @@
-# Biome-Generator (CS 334 Final Project)
+# Biome Generator (CS 334 Final Project)
