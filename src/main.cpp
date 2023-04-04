@@ -7,8 +7,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-
-
 int main()
 {
     glfwInit();
@@ -33,6 +31,15 @@ int main()
 
     glViewport(0, 0, 800, 600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    // Input the shaders
+    // Compile them
+    // Attach to program
+    // Link program
+    // Set up your indices/vertices for the 100x100 grid
+    // Create a VBO to store them
+    // Create a VAO to store the VBO
+    // Maybe use a EBO
 
     while (!glfwWindowShouldClose(window))
     {
