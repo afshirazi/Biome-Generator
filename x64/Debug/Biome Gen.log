@@ -1,3 +1,3 @@
-﻿  glad.c
-  main.cpp
+﻿  main.cpp
+C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\src\main.cpp(186,73): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
   Biome Gen.vcxproj -> C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\x64\Debug\Biome Gen.exe
