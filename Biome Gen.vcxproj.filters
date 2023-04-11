@@ -29,5 +29,8 @@
     <None Include="shaders\v.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="shaders\g.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

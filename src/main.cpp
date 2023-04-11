@@ -10,6 +10,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#define ds_rand (rand() % 5) - 2
+
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -49,6 +52,18 @@ std::string inputVertShader()
     return vert;
 }
 
+std::string inputGeoShader()
+{
+    std::ifstream istr("shaders/g.glsl");
+    std::string geo;
+    std::stringstream gShaderStream;
+    gShaderStream << istr.rdbuf();
+    geo = gShaderStream.str();
+
+    istr.close();
+    return geo;
+}
+
 std::string inputFragShader()
 {
     std::ifstream istr("shaders/f.glsl");
@@ -60,6 +75,33 @@ std::string inputFragShader()
     istr.close();
     return frag;
 }
+
+
+int di_step(int x, int y, int r, int step_size, int tl, int tr, int bl, int br)
+{
+    //int tl = arr[x][y];
+    //int tr = arr[x][y + step_size];
+    //int bl = arr[x + step_size][y];
+    //int br = arr[x + step_size][y + step_size];
+
+    int avg = tl + tr + bl + br;
+    avg /= 4;
+    return r + avg;
+}
+
+int sq_step(int x, int y, int r, int half_step, int t, int b, int l, int ri)
+{
+    //int t = arr[x][y - half_step];
+    //int b = arr[x][y + half_step];
+    //int l = arr[x - half_step][y];
+    //int ri = arr[x + half_step][y];
+
+    int avg = t + b + l + ri;
+    avg /= 4;
+    return r + avg;
+}
+
+
 
 int main()
 {
@@ -91,14 +133,20 @@ int main()
     // Compile them
     GLuint vertShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint geoShader = glCreateShader(GL_GEOMETRY_SHADER);
     std::string _vertShaderSrc = inputVertShader();
+    std::string _geoShaderSrc = inputGeoShader();
     std::string _fragShaderSrc = inputFragShader();
 
     const char* vertShaderSrc = _vertShaderSrc.c_str();
+    const char* geoShaderSrc = _geoShaderSrc.c_str();
     const char* fragShaderSrc = _fragShaderSrc.c_str();
 
     glShaderSource(vertShader, 1, &vertShaderSrc, NULL);
     glCompileShader(vertShader);
+
+    glShaderSource(geoShader, 1, &geoShaderSrc, NULL);
+    glCompileShader(geoShader);
 
     glShaderSource(fragShader, 1, &fragShaderSrc, NULL);
     glCompileShader(fragShader);
@@ -107,30 +155,64 @@ int main()
     // Link program
     GLuint shaderProg = glCreateProgram();
     glAttachShader(shaderProg, vertShader);
+    glAttachShader(shaderProg, geoShader);
     glAttachShader(shaderProg, fragShader);
     glLinkProgram(shaderProg);
 
     glDeleteShader(vertShader);
+    glDeleteShader(geoShader);
     glDeleteShader(fragShader);
     
     // Set up indices/vertices for the 100x100 grid
     
-    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> vertInfo;
     std::vector<glm::uvec3> indices;
 
-    int dim = 101;
+    std::vector<glm::vec3> vertCopy;
+
+    int dim = 64;
+
+    int arr[65][65];
+    arr[0][0] = 48;
+    arr[0][64] = 19;
+    arr[64][0] = 71;
+    arr[64][64] = 25;
+
+    int step_size = 64;
+
+    while (step_size > 1)
+    {
+        int half_step = step_size / 2;
+        for (int x = 0; x < 64; x += step_size)
+            for (int y = 0; y < 64; y += step_size)
+            {
+                arr[x + half_step][y + half_step] = di_step(x, y, ds_rand, step_size, arr[x][y], arr[x][y + step_size], arr[x + step_size][y], arr[x + step_size][y + step_size]);
+            }
+
+        for (int x = half_step; x < 64 + half_step; x += step_size)
+            for (int y = half_step; y < 64 + half_step; y += step_size)
+            {
+                arr[x][y] = sq_step(x, y, ds_rand, half_step, arr[x][y - half_step], arr[x][y + half_step], arr[x - half_step][y], arr[x + half_step][y]);
+            }
+
+        step_size /= 2;
+    }
+
+    std::cout << ds_rand << std::endl;
+
+    for (int i = 0; i <= dim; i++)
+        for (int j = 0; j <= dim; j++)
+            std::cout << arr[i][j] << std::endl;
 
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
         {
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
-            GLfloat z = 0.f;
+            GLfloat z = glm::max(arr[i][j] / 600000000.f,0.4f);
 
-            //std::cout << i*(dim+1)+j << " x: " << x << " y: " << y << " z: " << z << std::endl;
-
-            vertices.push_back(glm::vec3(x, y, z)); // pos
-            //vertices.push_back(glm::vec3(x, y, (i+j)/200.f)); // color
+            vertInfo.push_back(glm::vec3(x, y, z)); // pos
+            vertInfo.push_back(glm::vec3(0.8f, 0.5f, 0.f)); // col
         }
 
     for (int i = 0; i < dim; i+=1)
@@ -141,13 +223,12 @@ int main()
             GLuint bl = (i + 1) * (dim + 1) + j;
             GLuint br = (i + 1) * (dim + 1) + j + 1;
 
-            //std::cout << i*(dim)+j << " tl: " << tl << " tr: " << tr << " bl: " << bl << " br: " << br << std::endl;
-
             indices.push_back(glm::uvec3(tl, tr, bl)); // top triangle
             indices.push_back(glm::uvec3(tr, bl, br)); // bottom triangle
         }
     
-    
+
+
     // Create a VAO to store the VBO
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
@@ -157,18 +238,20 @@ int main()
     GLuint VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), glm::value_ptr(vertices.at(0)), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertInfo.size() * sizeof(glm::vec3), glm::value_ptr(vertInfo.at(0)), GL_STATIC_DRAW);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0); // pos
-    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GL_FLOAT), (void*)(3*sizeof(GLfloat))); // color
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0); // pos
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3*sizeof(GLfloat))); // color
     glEnableVertexAttribArray(0);
-    //glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(1);
 
     // Create an EBO for the triangles
     GLuint EBO;
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(glm::uvec3), glm::value_ptr(indices.at(0)), GL_STATIC_DRAW);
+
+    std::cout << indices.size() << " " << vertInfo.size() << std::endl;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -179,7 +262,7 @@ int main()
 
         // creating perspective
         glm::mat4 proj = glm::mat4(1.0f);
-        proj = glm::perspective(glm::radians(45.0f), 1.f, 0.1f, 100.0f);
+        proj = glm::perspective(glm::radians(45.0f), 1.f, 0.f, 100.0f);
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.f, 0.f, 0.f));
