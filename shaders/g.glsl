@@ -15,8 +15,18 @@ const vec3 light = normalize(vec3(0.3, 0.3, 0.8));
 
 vec3 calc_normal()
 {
-	vec3 tan = gl_in[1].gl_Position.xyz - gl_in[0].gl_Position.xyz;
-	vec3 bitan = gl_in[2].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+	vec3 tan; 
+	vec3 bitan; 
+	if (gl_in[0].gl_Position.y == gl_in[1].gl_Position.y)
+	{
+		bitan = gl_in[1].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+		tan = gl_in[2].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+	}
+	else
+	{
+		tan = gl_in[1].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+		bitan = gl_in[2].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+	}
 	vec3 normal = normalize(cross(tan, bitan));
 	return normal;
 }

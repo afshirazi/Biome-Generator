@@ -10,7 +10,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define ds_rand (rand() % 5) - 2
+#define ds_rand (rand() % 3) - 1
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -77,7 +77,7 @@ std::string inputFragShader()
 }
 
 
-int di_step(int x, int y, int r, int step_size, int tl, int tr, int bl, int br)
+int sq_step( int r, int tl, int tr, int bl, int br)
 {
     //int tl = arr[x][y];
     //int tr = arr[x][y + step_size];
@@ -89,7 +89,7 @@ int di_step(int x, int y, int r, int step_size, int tl, int tr, int bl, int br)
     return r + avg;
 }
 
-int sq_step(int x, int y, int r, int half_step, int t, int b, int l, int ri)
+int di_step(int r, int t, int b, int l, int ri)
 {
     //int t = arr[x][y - half_step];
     //int b = arr[x][y + half_step];
@@ -97,11 +97,18 @@ int sq_step(int x, int y, int r, int half_step, int t, int b, int l, int ri)
     //int ri = arr[x + half_step][y];
 
     int avg = t + b + l + ri;
-    avg /= 4;
+    if (t == 0 || b == 0 || l == 0 || ri == 0)
+        avg /= 3;
+    else
+        avg /= 4;
     return r + avg;
 }
 
-
+int custom_rand_func()
+{
+    int r = rand();
+    return r;
+}
 
 int main()
 {
@@ -173,26 +180,43 @@ int main()
     int dim = 64;
 
     int arr[65][65];
-    arr[0][0] = 48;
-    arr[0][64] = 19;
-    arr[64][0] = 71;
-    arr[64][64] = 25;
+    arr[0][0] = 16;
+    arr[0][64] = 4;
+    arr[64][0] = -3;
+    arr[64][64] = 15;
 
     int step_size = 64;
 
     while (step_size > 1)
     {
         int half_step = step_size / 2;
-        for (int x = 0; x < 64; x += step_size)
-            for (int y = 0; y < 64; y += step_size)
+        
+        for (int x = half_step; x < 64; x += step_size)
+            for (int y = half_step; y < 64; y += step_size)
             {
-                arr[x + half_step][y + half_step] = di_step(x, y, ds_rand, step_size, arr[x][y], arr[x][y + step_size], arr[x + step_size][y], arr[x + step_size][y + step_size]);
+                arr[x][y] = sq_step(ds_rand, arr[x - half_step][y - half_step], arr[x + half_step][y - half_step], arr[x - half_step][y + half_step], arr[x + half_step][y + half_step]);
             }
-
-        for (int x = half_step; x < 64 + half_step; x += step_size)
-            for (int y = half_step; y < 64 + half_step; y += step_size)
+        
+        for (int x = 0; x <= 64; x += step_size)
+            for (int y = 0; y <= 64; y += step_size)
             {
-                arr[x][y] = sq_step(x, y, ds_rand, half_step, arr[x][y - half_step], arr[x][y + half_step], arr[x - half_step][y], arr[x + half_step][y]);
+                if (x + half_step < 64)
+                {
+                    int t = (y - half_step) >= 0 ? arr[x + half_step][y - half_step] : 0;
+                    int b = (y + half_step) <= 64 ? arr[x + half_step][y + half_step] : 0;
+                    int l = x >= 0 ? arr[x][y] : 0;
+                    int ri = (x + step_size) <= 64 ? arr[x + step_size][y] : 0;
+                    arr[x + half_step][y] = di_step(ds_rand, t, b, l, ri);
+                }
+                
+                if (y + half_step < 64)
+                {
+                    int t = y >= 0 ? arr[x][y] : 0;
+                    int b = (y + step_size) <= 64 ? arr[x][y + step_size] : 0;
+                    int l = (x - half_step) >= 0 ? arr[x - half_step][y + half_step] : 0;
+                    int ri = (x + half_step) <= 64 ? arr[x + half_step][y + half_step] : 0;
+                    arr[x][y + half_step] = di_step(ds_rand, t, b, l, ri);
+                }
             }
 
         step_size /= 2;
@@ -200,16 +224,17 @@ int main()
 
     std::cout << ds_rand << std::endl;
 
-    for (int i = 0; i <= dim; i++)
-        for (int j = 0; j <= dim; j++)
-            std::cout << arr[i][j] << std::endl;
+    //for (int i = 0; i <= dim; i++)
+    //    for (int j = 0; j <= dim; j++)
+    //        std::cout << arr[i][j] << std::endl;
 
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
         {
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
-            GLfloat z = glm::max(arr[i][j] / 600000000.f,0.4f);
+            GLfloat z = arr[i][j] / 100.f;
+            //GLfloat z = 0;
 
             vertInfo.push_back(glm::vec3(x, y, z)); // pos
             vertInfo.push_back(glm::vec3(0.8f, 0.5f, 0.f)); // col
@@ -262,14 +287,14 @@ int main()
 
         // creating perspective
         glm::mat4 proj = glm::mat4(1.0f);
-        proj = glm::perspective(glm::radians(45.0f), 1.f, 0.f, 100.0f);
+        proj = glm::perspective(glm::radians(45.0f), 1.f, 1.f, 100.0f);
 
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.f, 0.f, 0.f));
-        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(0.f, 0.f, 1.f));
+        model = glm::rotate(model, glm::radians(-75.0f), glm::vec3(1.f, 0.f, 0.f));
+        model = glm::rotate(model, glm::radians(-30.0f), glm::vec3(0.f, 0.f, 1.f));
 
         glm::mat4 view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(-0.7f, 0.2f, -2.f));
+        view = glm::translate(view, glm::vec3(-0.65f, -0.3f, -2.f));
 
         GLint modelint = glGetUniformLocation(shaderProg, "model");
         glUniformMatrix4fv(modelint, 1, GL_FALSE, glm::value_ptr(model));
