@@ -12,6 +12,15 @@
 
 #define ds_rand (rand() % 3) - 1
 
+bool up_view = false;
+
+void change_view_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+        up_view = false;
+    else if (key == GLFW_KEY_B && action == GLFW_PRESS)
+        up_view = true;
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -106,7 +115,15 @@ int di_step(int r, int t, int b, int l, int ri)
 
 int custom_rand_func()
 {
-    int r = rand();
+    int r = (rand() % 71) - 35;
+    if (r < -3 || r > 3)
+    {
+        r = -r * r / 200 + 3;
+    }
+    else
+    {
+        r = -4 * r * r + 80;
+    }
     return r;
 }
 
@@ -135,6 +152,7 @@ int main()
 
     glViewport(0, 0, 800, 800);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, change_view_callback);
 
     // Input the shaders
     // Compile them
@@ -177,52 +195,50 @@ int main()
 
     std::vector<glm::vec3> vertCopy;
 
-    int dim = 64;
+    const int dim = 128;
 
-    int arr[65][65];
-    arr[0][0] = 16;
-    arr[0][64] = 4;
-    arr[64][0] = -3;
-    arr[64][64] = 15;
+    int arr[dim + 1][dim + 1];
+    arr[0][0] = 160;
+    arr[0][dim] = 40;
+    arr[dim][0] = -30;
+    arr[dim][dim] = 150;
 
-    int step_size = 64;
+    int step_size = dim;
 
     while (step_size > 1)
     {
         int half_step = step_size / 2;
         
-        for (int x = half_step; x < 64; x += step_size)
-            for (int y = half_step; y < 64; y += step_size)
+        for (int x = half_step; x < dim; x += step_size)
+            for (int y = half_step; y < dim; y += step_size)
             {
-                arr[x][y] = sq_step(ds_rand, arr[x - half_step][y - half_step], arr[x + half_step][y - half_step], arr[x - half_step][y + half_step], arr[x + half_step][y + half_step]);
+                arr[x][y] = sq_step(custom_rand_func(), arr[x - half_step][y - half_step], arr[x + half_step][y - half_step], arr[x - half_step][y + half_step], arr[x + half_step][y + half_step]);
             }
         
-        for (int x = 0; x <= 64; x += step_size)
-            for (int y = 0; y <= 64; y += step_size)
+        for (int x = 0; x <= dim; x += step_size)
+            for (int y = 0; y <= dim; y += step_size)
             {
-                if (x + half_step < 64)
+                if (x + half_step < dim)
                 {
                     int t = (y - half_step) >= 0 ? arr[x + half_step][y - half_step] : 0;
-                    int b = (y + half_step) <= 64 ? arr[x + half_step][y + half_step] : 0;
+                    int b = (y + half_step) <= dim ? arr[x + half_step][y + half_step] : 0;
                     int l = x >= 0 ? arr[x][y] : 0;
-                    int ri = (x + step_size) <= 64 ? arr[x + step_size][y] : 0;
-                    arr[x + half_step][y] = di_step(ds_rand, t, b, l, ri);
+                    int ri = (x + step_size) <= dim ? arr[x + step_size][y] : 0;
+                    arr[x + half_step][y] = di_step(custom_rand_func(), t, b, l, ri);
                 }
                 
-                if (y + half_step < 64)
+                if (y + half_step < dim)
                 {
                     int t = y >= 0 ? arr[x][y] : 0;
-                    int b = (y + step_size) <= 64 ? arr[x][y + step_size] : 0;
+                    int b = (y + step_size) <= dim ? arr[x][y + step_size] : 0;
                     int l = (x - half_step) >= 0 ? arr[x - half_step][y + half_step] : 0;
-                    int ri = (x + half_step) <= 64 ? arr[x + half_step][y + half_step] : 0;
-                    arr[x][y + half_step] = di_step(ds_rand, t, b, l, ri);
+                    int ri = (x + half_step) <= dim ? arr[x + half_step][y + half_step] : 0;
+                    arr[x][y + half_step] = di_step(custom_rand_func(), t, b, l, ri);
                 }
             }
 
         step_size /= 2;
     }
-
-    std::cout << ds_rand << std::endl;
 
     //for (int i = 0; i <= dim; i++)
     //    for (int j = 0; j <= dim; j++)
@@ -233,7 +249,7 @@ int main()
         {
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
-            GLfloat z = arr[i][j] / 100.f;
+            GLfloat z = arr[i][j] / 1000.f;
             //GLfloat z = 0;
 
             vertInfo.push_back(glm::vec3(x, y, z)); // pos
@@ -277,6 +293,10 @@ int main()
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(glm::uvec3), glm::value_ptr(indices.at(0)), GL_STATIC_DRAW);
 
     std::cout << indices.size() << " " << vertInfo.size() << std::endl;
+    
+    glm::mat4 proj = glm::mat4(1.0f);
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = glm::mat4(1.0f);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -286,16 +306,24 @@ int main()
         glUseProgram(shaderProg);
 
         // creating perspective
-        glm::mat4 proj = glm::mat4(1.0f);
-        proj = glm::perspective(glm::radians(45.0f), 1.f, 1.f, 100.0f);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(-75.0f), glm::vec3(1.f, 0.f, 0.f));
-        model = glm::rotate(model, glm::radians(-30.0f), glm::vec3(0.f, 0.f, 1.f));
-
-        glm::mat4 view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(-0.65f, -0.3f, -2.f));
-
+        if (!up_view) 
+        {
+            proj = glm::mat4(1.0f);
+            model = glm::mat4(1.0f);
+            view = glm::mat4(1.0f);
+            proj = glm::perspective(glm::radians(45.0f), 1.f, 1.f, 100.0f);
+            model = glm::rotate(model, glm::radians(-75.0f), glm::vec3(1.f, 0.f, 0.f));
+            model = glm::rotate(model, glm::radians(-30.0f), glm::vec3(0.f, 0.f, 1.f));
+            view = glm::translate(view, glm::vec3(-0.65f, -0.3f, -2.f));
+        }
+        else
+        {
+            proj = glm::mat4(1.0f);
+            model = glm::mat4(1.0f);
+            view = glm::mat4(1.0f);
+            view = glm::translate(view, glm::vec3(-0.5f, -0.5f, 0.f));
+        }
+        
         GLint modelint = glGetUniformLocation(shaderProg, "model");
         glUniformMatrix4fv(modelint, 1, GL_FALSE, glm::value_ptr(model));
 
