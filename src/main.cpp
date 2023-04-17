@@ -113,18 +113,87 @@ int di_step(int r, int t, int b, int l, int ri)
     return r + avg;
 }
 
-int custom_rand_func()
+int get_biome(int x, int y, std::vector<glm::uvec3> coords)
 {
-    int r = (rand() % 71) - 35;
-    if (r < -3 || r > 3)
+    double dist = 100000;
+    int biome = 0;
+    for (glm::uvec3 coord : coords)
     {
+        double newdist = glm::sqrt((x / 129.0 - coord.x / 100.0) * (x / 129.0 - coord.x / 100.0) + (y / 129.0 - coord.y / 100.0) * (y / 129.0 - coord.y / 100.0));
+        biome = newdist < dist ? coord.z : biome;
+        dist = newdist < dist ? newdist : dist;
+    }
+
+    return biome;
+}
+
+int custom_rand_func(int x, int y, std::vector<glm::uvec3> coords)
+{
+    int biome = get_biome(x, y, coords);
+    
+    int r;
+    switch (biome)
+    {
+    case 'M':
+        r = (rand() % 71) - 35;
+        if (r < -3 || r > 3)
+        {
+            r = -r * r / 200 + 3;
+        }
+        else
+        {
+            r = -4 * r * r + 100;
+        }
+        break;
+    case 'D':
+        r = (rand() % 71) - 35;
         r = -r * r / 200 + 3;
+        break;
+    case 'F':
+        r = (rand() % 71) - 35;
+        r = -r * r / 200 + 3;
+        break;
+    default:
+        r = (rand() % 71) - 35;
+        if (r < -3 || r > 3)
+        {
+            r = -r * r / 200 + 3;
+        }
+        else
+        {
+            r = -4 * r * r + 80;
+        }
     }
-    else
-    {
-        r = -4 * r * r + 80;
-    }
+    
     return r;
+}
+
+glm::vec3 get_grid_col(float x, float y, float z, std::vector<glm::uvec3> coords)
+{
+    double dist = 100000;
+    int biome = 0;
+    for (glm::uvec3 coord : coords)
+    {
+        double newdist = glm::sqrt((x - coord.x / 100.0) * (x - coord.x / 100.0) + (y - coord.y / 100.0) * (y - coord.y / 100.0));
+        biome = newdist < dist ? coord.z : biome;
+        dist = newdist < dist ? newdist : dist;
+    }
+
+    switch (biome)
+    {
+    case 'M':
+        if (z < 0.2f)
+            return glm::vec3(0.27f, 0.62f, 0.28f);
+        return glm::vec3(1.f, 0.98f, 0.98f);
+    case 'D':
+        return glm::vec3(0.8f, 0.5f, 0.f);
+    case 'O':
+        return glm::vec3(0.05f, 0.28f, 0.63f);
+    case 'F':
+        return glm::vec3(0.06f, 0.14f, 0.063f);
+    default:
+        return glm::vec3(0.8f, 0.5f, 0.f);
+    }
 }
 
 int main()
@@ -153,6 +222,8 @@ int main()
     glViewport(0, 0, 800, 800);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetKeyCallback(window, change_view_callback);
+
+    //glEnable(GL_DEPTH_TEST);
 
     // Input the shaders
     // Compile them
@@ -188,19 +259,25 @@ int main()
     glDeleteShader(geoShader);
     glDeleteShader(fragShader);
     
-    // Set up indices/vertices for the 100x100 grid
-    
+
+    // vector to store chosen biome coordinates
+    std::vector<glm::uvec3> coords;
+
+    coords.push_back(glm::uvec3(41, 58, 'D'));
+    coords.push_back(glm::uvec3(34, 37, 'M'));
+    coords.push_back(glm::uvec3(52, 87, 'O'));
+    coords.push_back(glm::uvec3(98, 99, 'F'));
+
+    // Set up indices/vertices for the grid
     std::vector<glm::vec3> vertInfo;
     std::vector<glm::uvec3> indices;
 
-    std::vector<glm::vec3> vertCopy;
-
     const int dim = 128;
 
-    int arr[dim + 1][dim + 1];
+    int arr[dim + 1][dim + 1] = {0};
     arr[0][0] = 160;
     arr[0][dim] = 40;
-    arr[dim][0] = -30;
+    arr[dim][0] = 10;
     arr[dim][dim] = 150;
 
     int step_size = dim;
@@ -212,7 +289,7 @@ int main()
         for (int x = half_step; x < dim; x += step_size)
             for (int y = half_step; y < dim; y += step_size)
             {
-                arr[x][y] = sq_step(custom_rand_func(), arr[x - half_step][y - half_step], arr[x + half_step][y - half_step], arr[x - half_step][y + half_step], arr[x + half_step][y + half_step]);
+                arr[x][y] = sq_step(custom_rand_func(x, y, coords), arr[x - half_step][y - half_step], arr[x + half_step][y - half_step], arr[x - half_step][y + half_step], arr[x + half_step][y + half_step]);
             }
         
         for (int x = 0; x <= dim; x += step_size)
@@ -224,7 +301,7 @@ int main()
                     int b = (y + half_step) <= dim ? arr[x + half_step][y + half_step] : 0;
                     int l = x >= 0 ? arr[x][y] : 0;
                     int ri = (x + step_size) <= dim ? arr[x + step_size][y] : 0;
-                    arr[x + half_step][y] = di_step(custom_rand_func(), t, b, l, ri);
+                    arr[x + half_step][y] = di_step(custom_rand_func(x, y, coords), t, b, l, ri);
                 }
                 
                 if (y + half_step < dim)
@@ -233,7 +310,7 @@ int main()
                     int b = (y + step_size) <= dim ? arr[x][y + step_size] : 0;
                     int l = (x - half_step) >= 0 ? arr[x - half_step][y + half_step] : 0;
                     int ri = (x + half_step) <= dim ? arr[x + half_step][y + half_step] : 0;
-                    arr[x][y + half_step] = di_step(custom_rand_func(), t, b, l, ri);
+                    arr[x][y + half_step] = di_step(custom_rand_func(x, y, coords), t, b, l, ri);
                 }
             }
 
@@ -247,13 +324,19 @@ int main()
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
         {
+            int biome = get_biome(j, i, coords);
+
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
-            GLfloat z = arr[i][j] / 1000.f;
+            GLfloat z = glm::max(arr[i][j] / 1000.f, 0.f);
+
+            if (biome != 'M' && z > 0.05f) // make sure heights above a certain height only happen in mountains
+                z = ( ((120 + 100 + 10 + 40) / 4) + custom_rand_func(i, j, coords) ) / 1000.f;
             //GLfloat z = 0;
 
             vertInfo.push_back(glm::vec3(x, y, z)); // pos
-            vertInfo.push_back(glm::vec3(0.8f, 0.5f, 0.f)); // col
+            glm::vec3 col = get_grid_col(x, y, z, coords);
+            vertInfo.push_back(col); // col
         }
 
     for (int i = 0; i < dim; i+=1)
