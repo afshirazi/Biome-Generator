@@ -12,14 +12,16 @@
 
 #define ds_rand (rand() % 3) - 1
 
-bool up_view = false;
+char plane_view = 'A';
 
 void change_view_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_A && action == GLFW_PRESS)
-        up_view = false;
+        plane_view = 'A';
     else if (key == GLFW_KEY_B && action == GLFW_PRESS)
-        up_view = true;
+        plane_view = 'B';
+    else if (key == GLFW_KEY_C && action == GLFW_PRESS)
+        plane_view = 'C';
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -182,7 +184,7 @@ glm::vec3 get_grid_col(float x, float y, float z, std::vector<glm::uvec3> coords
     switch (biome)
     {
     case 'M':
-        if (z < 0.2f)
+        if (z < 0.15f)
             return glm::vec3(0.27f, 0.62f, 0.28f);
         return glm::vec3(1.f, 0.98f, 0.98f);
     case 'D':
@@ -223,7 +225,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetKeyCallback(window, change_view_callback);
 
-    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
 
     // Input the shaders
     // Compile them
@@ -275,10 +277,10 @@ int main()
     const int dim = 128;
 
     int arr[dim + 1][dim + 1] = {0};
-    arr[0][0] = 160;
-    arr[0][dim] = 40;
-    arr[dim][0] = 10;
-    arr[dim][dim] = 150;
+    arr[0][0] = 60;
+    arr[0][dim] = 10;
+    arr[dim][0] = 0;
+    arr[dim][dim] = 50;
 
     int step_size = dim;
 
@@ -317,9 +319,6 @@ int main()
         step_size /= 2;
     }
 
-    //for (int i = 0; i <= dim; i++)
-    //    for (int j = 0; j <= dim; j++)
-    //        std::cout << arr[i][j] << std::endl;
 
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
@@ -328,11 +327,10 @@ int main()
 
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
-            GLfloat z = glm::max(arr[i][j] / 1000.f, 0.f);
+            GLfloat z = glm::max(arr[j][i] / 1000.f, 0.f);
 
-            if (biome != 'M' && z > 0.05f) // make sure heights above a certain height only happen in mountains
-                z = ( ((120 + 100 + 10 + 40) / 4) + custom_rand_func(i, j, coords) ) / 1000.f;
-            //GLfloat z = 0;
+            if (biome == 'O') // make sure oceans are at sea level (0)
+                z = 0.f;
 
             vertInfo.push_back(glm::vec3(x, y, z)); // pos
             glm::vec3 col = get_grid_col(x, y, z, coords);
@@ -384,12 +382,12 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProg);
 
         // creating perspective
-        if (!up_view) 
+        if (plane_view == 'A')
         {
             proj = glm::mat4(1.0f);
             model = glm::mat4(1.0f);
@@ -399,12 +397,22 @@ int main()
             model = glm::rotate(model, glm::radians(-30.0f), glm::vec3(0.f, 0.f, 1.f));
             view = glm::translate(view, glm::vec3(-0.65f, -0.3f, -2.f));
         }
-        else
+        else if (plane_view == 'B')
         {
             proj = glm::mat4(1.0f);
             model = glm::mat4(1.0f);
             view = glm::mat4(1.0f);
             view = glm::translate(view, glm::vec3(-0.5f, -0.5f, 0.f));
+        }
+        else if (plane_view == 'C')
+        {
+            proj = glm::mat4(1.0f);
+            model = glm::mat4(1.0f);
+            view = glm::mat4(1.0f);
+            proj = glm::perspective(glm::radians(45.0f), 1.f, 1.f, 100.0f);
+            model = glm::rotate(model, glm::radians(-75.0f), glm::vec3(1.f, 0.f, 0.f));
+            model = glm::rotate(model, glm::radians(120.0f), glm::vec3(0.f, 0.f, 1.f));
+            view = glm::translate(view, glm::vec3(0.65f, -0.3f, -2.f));
         }
         
         GLint modelint = glGetUniformLocation(shaderProg, "model");
