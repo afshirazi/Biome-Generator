@@ -205,7 +205,9 @@ glm::vec3 get_grid_col(float x, float y, float z, std::vector<glm::uvec3> coords
     case 'D':
         return glm::vec3(0.8f, 0.5f, 0.f);
     case 'O':
-        return glm::vec3(0.05f, 0.28f, 0.63f);
+        if (z == 0.f)
+            return glm::vec3(0.05f, 0.28f, 0.63f);
+        return glm::vec3(0.96f, 0.84f, 0.69f);
     case 'F':
         return glm::vec3(0.06f, 0.14f, 0.063f);
     default:
