@@ -29,28 +29,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-// Trim leading and trailing whitespace from a line (taken from HW4)
-std::string trim(const std::string& line) {
-    const std::string whitespace = " \t\r\n";
-    auto first = line.find_first_not_of(whitespace);
-    if (first == std::string::npos)
-        return "";
-    auto last = line.find_last_not_of(whitespace);
-    auto range = last - first + 1;
-    return line.substr(first, range);
-}
-
-// Reads lines from istream, stripping whitespace,
-// until it finds a nonempty line (taken from HW4)
-std::string getNextLine(std::istream& istr) {
-    std::string line = "";
-    while (line == "") {
-        std::getline(istr, line);
-        line = trim(line);
-    }
-    return line;
-} // not used
-
 std::string inputVertShader()
 {
     std::ifstream istr("shaders/v.glsl");
@@ -87,14 +65,56 @@ std::string inputFragShader()
     return frag;
 }
 
+std::string trim(const std::string& line) {
+    const std::string whitespace = " \t\r\n";
+    auto first = line.find_first_not_of(whitespace);
+    if (first == std::string::npos)
+        return "";
+    auto last = line.find_last_not_of(whitespace);
+    auto range = last - first + 1;
+    return line.substr(first, range);
+} // taken from HW4
+
+std::string getNextLine(std::istream& istr) {
+    std::string line = "";
+    while (line == "") {
+        std::getline(istr, line);
+        line = trim(line);
+    }
+    return line;
+} // taken from HW4
+
+std::vector<glm::uvec3> inputBiomeCoords()
+{
+    std::ifstream istr("biome_coordinates.txt");
+    std::stringstream cShaderStream;
+    cShaderStream << istr.rdbuf();
+
+    istr.close();
+    std::vector<glm::uvec3> coordvec;
+    while (cShaderStream.rdbuf()->in_avail() > 0)
+    {
+        std::stringstream curr(getNextLine(cShaderStream));
+        std::string xStr;
+        std::string yStr;
+        std::string biomeStr;
+        curr.get(&xStr[0], 3, ',');
+        curr.get();
+        curr.get(&yStr[0], 3, ',');
+        curr.get();
+        curr.get(&biomeStr[0], 2);
+
+        int x = std::stoi(xStr);
+        int y = std::stoi(yStr);
+        int biome = biomeStr[0];
+        coordvec.push_back(glm::uvec3(x, y, biome));
+    }
+
+    return coordvec;
+}
 
 int sq_step( int r, int tl, int tr, int bl, int br)
 {
-    //int tl = arr[x][y];
-    //int tr = arr[x][y + step_size];
-    //int bl = arr[x + step_size][y];
-    //int br = arr[x + step_size][y + step_size];
-
     int avg = tl + tr + bl + br;
     avg /= 4;
     return r + avg;
@@ -102,11 +122,6 @@ int sq_step( int r, int tl, int tr, int bl, int br)
 
 int di_step(int r, int t, int b, int l, int ri)
 {
-    //int t = arr[x][y - half_step];
-    //int b = arr[x][y + half_step];
-    //int l = arr[x - half_step][y];
-    //int ri = arr[x + half_step][y];
-
     int avg = t + b + l + ri;
     if (t == 0 || b == 0 || l == 0 || ri == 0)
         avg /= 3;
@@ -266,14 +281,13 @@ int main()
     glDeleteShader(geoShader);
     glDeleteShader(fragShader);
     
-
     // vector to store chosen biome coordinates
     std::vector<glm::uvec3> coords;
-
-    coords.push_back(glm::uvec3(41, 58, 'D'));
-    coords.push_back(glm::uvec3(34, 37, 'M'));
-    coords.push_back(glm::uvec3(52, 87, 'O'));
-    coords.push_back(glm::uvec3(98, 99, 'F'));
+    
+    // input coordinates from file
+    coords = inputBiomeCoords();
+    for (glm::uvec3 coord: coords)
+        std::cout << "x: " << coord.x << " y: " << coord.y << " biome : " << coord.z << std::endl;
 
     // Set up indices/vertices for the grid
     std::vector<glm::vec3> vertInfo;
@@ -351,7 +365,7 @@ int main()
         }
     }
         
-
+    // add colors and heights to vertices
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
         {
@@ -364,6 +378,7 @@ int main()
             vertInfo.push_back(col); // col
         }
 
+    // specify triangle vertices for EBO
     for (int i = 0; i < dim; i+=1)
         for (int j = 0; j < dim; j+=1)
         {
@@ -399,8 +414,6 @@ int main()
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(glm::uvec3), glm::value_ptr(indices.at(0)), GL_STATIC_DRAW);
-
-    std::cout << indices.size() << " " << vertInfo.size() << std::endl;
     
     glm::mat4 proj = glm::mat4(1.0f);
     glm::mat4 model = glm::mat4(1.0f);
