@@ -198,6 +198,11 @@ glm::vec3 get_grid_col(float x, float y, float z, std::vector<glm::uvec3> coords
     }
 }
 
+int lerp(int a, int b, int step)
+{
+    return (a * (1 - step/9.0)) + (b * step/9.0);
+}
+
 int main()
 {
     //window/GLFW setup
@@ -276,7 +281,7 @@ int main()
 
     const int dim = 128;
 
-    int arr[dim + 1][dim + 1] = {0};
+    std::vector<std::vector<int>> arr(dim + 1, std::vector<int> (dim + 1));
     arr[0][0] = 60;
     arr[0][dim] = 10;
     arr[dim][0] = 0;
@@ -319,18 +324,40 @@ int main()
         step_size /= 2;
     }
 
-
+    // make sure oceans are set to sea level (0)
     for (int i = 0; i <= dim; i++)
         for (int j = 0; j <= dim; j++)
         {
             int biome = get_biome(j, i, coords);
+            if (biome == 'O')
+                arr[j][i] = 0;
+        }
 
+    // lerp 
+    for (int i = 0; i < dim; i++) // over x
+    {
+        for (int j = 0; j < dim - 9; j+=10)
+        {
+            for (int k = 0; k < 10; k++)
+                arr[j + k][i] = lerp(arr[j][i], arr[j + 9][i], k);
+        }
+    }
+    for (int i = 0; i < dim - 9; i+=10) // over y
+    {
+        for (int j = 0; j < dim; j++)
+        {
+            for (int k = 0; k < 10; k++)
+                arr[j][i + k] = lerp(arr[j][i], arr[j][i + 9], k);
+        }
+    }
+        
+
+    for (int i = 0; i <= dim; i++)
+        for (int j = 0; j <= dim; j++)
+        {
             GLfloat x = (float)j / (float)dim;
             GLfloat y = (float)i / (float)dim;
             GLfloat z = glm::max(arr[j][i] / 1000.f, 0.f);
-
-            if (biome == 'O') // make sure oceans are at sea level (0)
-                z = 0.f;
 
             vertInfo.push_back(glm::vec3(x, y, z)); // pos
             glm::vec3 col = get_grid_col(x, y, z, coords);

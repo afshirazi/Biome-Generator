@@ -1,3 +1,4 @@
 ﻿  main.cpp
-C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\src\main.cpp(428,76): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\src\main.cpp(203,33): warning C4244: 'return': conversion from 'double' to 'int', possible loss of data
+C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\src\main.cpp(455,76): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
   Biome Gen.vcxproj -> C:\Users\Ali Lenovo\Desktop\All\School\CS334\Final Proj\Biome Gen\x64\Debug\Biome Gen.exe
